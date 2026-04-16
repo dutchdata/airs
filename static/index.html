@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>airs</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Berkeley+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap');
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0d0d0f;
+            --surface: #141416;
+            --surface2: #1c1c20;
+            --border: #27272d;
+            --border2: #35353d;
+            --text: #e8e8ec;
+            --muted: #6b6b7a;
+            --accent: #7c6aff;
+            --accent2: #a78bfa;
+            --human: #2a2a35;
+            --assistant: #161620;
+            --highlight: #7c6aff44;
+            --highlight-border: #7c6aff;
+            --match: #fbbf2444;
+            --match-text: #fbbf24;
+            --mono: 'Berkeley Mono', 'Fira Code', monospace;
+            --serif: 'Instrument Serif', Georgia, serif;
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 13px;
+            overflow: hidden;
+        }
+
+        #app {
+            display: grid;
+            grid-template-columns: 22% 78%;
+            height: 100vh;
+        }
+
+        /* ── LEFT PANEL ── */
+        #left {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+            overflow: hidden;
+        }
+
+        #left-header {
+            padding: 16px 14px 12px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #left-header h1 {
+            font-family: var(--serif);
+            font-size: 20px;
+            font-style: italic;
+            color: var(--accent2);
+            letter-spacing: 0.02em;
+            margin-bottom: 10px;
+        }
+
+        .search-wrap {
+            position: relative;
+        }
+
+        .search-wrap svg {
+            position: absolute;
+            left: 9px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            pointer-events: none;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 12px;
+            padding: 7px 10px 7px 30px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--muted);
+        }
+
+        #result-meta {
+            padding: 8px 14px 6px;
+            font-size: 11px;
+            color: var(--muted);
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        #convo-list {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border2) transparent;
+        }
+
+        .convo-card {
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.1s;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 4px 8px;
+            align-items: start;
+        }
+
+        .convo-card:hover {
+            background: var(--surface2);
+        }
+
+        .convo-card.active {
+            background: #1e1b3a;
+            border-left: 2px solid var(--accent);
+        }
+
+        .card-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            grid-column: 1;
+        }
+
+        .card-match-count {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent2);
+            background: #7c6aff1a;
+            border-radius: 10px;
+            padding: 1px 7px;
+            white-space: nowrap;
+            grid-column: 2;
+            grid-row: 1;
+            align-self: center;
+        }
+
+        .card-stats {
+            font-size: 10px;
+            color: var(--muted);
+            grid-column: 1 / -1;
+            margin-top: 2px;
+        }
+
+        .card-snippet {
+            font-size: 11px;
+            color: #9090a0;
+            grid-column: 1 / -1;
+            line-height: 1.4;
+            margin-top: 3px;
+            overflow: hidden;
+            display: -webkit-box;
+            line-clamp: 2;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .card-snippet mark {
+            background: var(--match);
+            color: var(--match-text);
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+
+        /* ── RIGHT PANEL ── */
+        #right {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg);
+        }
+
+        #right-header {
+            padding: 14px 20px 12px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #thread-title {
+            font-family: var(--serif);
+            font-size: 16px;
+            font-style: italic;
+            color: var(--text);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #thread-meta {
+            font-size: 11px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        #chat-search-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        #chat-search-wrap input {
+            width: 200px;
+        }
+
+        .nav-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 8px;
+            line-height: 1;
+            transition: color 0.1s, border-color 0.1s;
+        }
+
+        .nav-btn:hover {
+            color: var(--text);
+            border-color: var(--accent);
+        }
+
+        #match-indicator {
+            font-size: 11px;
+            color: var(--muted);
+            white-space: nowrap;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        #thread {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border2) transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        #empty-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 13px;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #empty-state span {
+            font-family: var(--serif);
+            font-style: italic;
+            font-size: 18px;
+            color: #3a3a4a;
+        }
+
+        .msg {
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.6;
+            font-size: 13px;
+            max-width: 100%;
+            border: 1px solid transparent;
+            transition: border-color 0.15s;
+        }
+
+        .msg.human {
+            background: var(--human);
+            align-self: flex-end;
+            max-width: 75%;
+            border-color: var(--border2);
+        }
+
+        .msg.assistant {
+            background: var(--assistant);
+            border-color: var(--border);
+            white-space: pre-wrap;
+        }
+
+        .msg-sender {
+            font-size: 10px;
+            color: var(--muted);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .msg.human .msg-sender {
+            color: var(--accent2);
+        }
+
+        .msg mark {
+            background: var(--match);
+            color: var(--match-text);
+            border-radius: 2px;
+            padding: 0 2px;
+        }
+
+        .msg.current-match {
+            border-color: var(--highlight-border);
+            box-shadow: 0 0 0 1px var(--highlight-border) inset;
+        }
+
+        /* scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 3px;
+        }
+
+        .loading {
+            color: var(--muted);
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+
+        <!-- LEFT: conversation list -->
+        <div id="left">
+            <div id="left-header">
+                <h1>airs</h1>
+                <div class="search-wrap">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
+                    </svg>
+                    <input id="global-search" type="text" placeholder="search conversations…" autocomplete="off" />
+                </div>
+            </div>
+            <div id="result-meta"></div>
+            <div id="convo-list">
+                <div class="loading">loading…</div>
+            </div>
+        </div>
+
+        <!-- RIGHT: thread view -->
+        <div id="right">
+            <div id="right-header">
+                <div id="thread-title" style="color:var(--muted);font-style:italic">select a conversation</div>
+                <div id="thread-meta"></div>
+                <div id="chat-search-wrap">
+                    <div class="search-wrap">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.35-4.35" />
+                        </svg>
+                        <input id="chat-search" type="text" placeholder="search in thread…" autocomplete="off"
+                            disabled />
+                    </div>
+                    <button class="nav-btn" id="prev-match">↑</button>
+                    <button class="nav-btn" id="next-match">↓</button>
+                    <div id="match-indicator"></div>
+                </div>
+            </div>
+            <div id="thread">
+                <div id="empty-state">
+                    <span>airs</span>
+                    <div>select a conversation to begin</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const API = 'http://localhost:8080/api';
+
+        // ── State ──────────────────────────────────────────────────────────────────
+        let allConvos = [];
+        let activeUuid = null;
+        let chatMatches = [];   // array of DOM elements with class current-match
+        let chatMatchIdx = 0;
+        let debounceTimer = null;
+
+        // ── Elements ───────────────────────────────────────────────────────────────
+        const globalSearch = document.getElementById('global-search');
+        const convoList = document.getElementById('convo-list');
+        const resultMeta = document.getElementById('result-meta');
+        const threadTitle = document.getElementById('thread-title');
+        const threadMeta = document.getElementById('thread-meta');
+        const thread = document.getElementById('thread');
+        const chatSearch = document.getElementById('chat-search');
+        const prevBtn = document.getElementById('prev-match');
+        const nextBtn = document.getElementById('next-match');
+        const matchIndicator = document.getElementById('match-indicator');
+
+        // ── Init ───────────────────────────────────────────────────────────────────
+        fetchConvos('');
+
+        // ── Global search ──────────────────────────────────────────────────────────
+        globalSearch.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => fetchConvos(globalSearch.value.trim()), 180);
+        });
+
+        async function fetchConvos(q) {
+            const url = q ? `${API}/search?q=${encodeURIComponent(q)}&limit=500` : `${API}/search?limit=500`;
+            const res = await fetch(url);
+            const data = await res.json();
+            allConvos = data.convos;
+            renderConvoList(allConvos, q);
+            resultMeta.textContent = q
+                ? `${data.total} match${data.total !== 1 ? 'es' : ''} for "${q}"`
+                : `${data.total} conversations`;
+        }
+
+        function renderConvoList(convos, q) {
+            if (!convos.length) {
+                convoList.innerHTML = '<div class="loading">no results</div>';
+                return;
+            }
+            convoList.innerHTML = convos.map(c => {
+                const d1 = fmtDate(c.created_at);
+                const d2 = fmtDate(c.updated_at);
+                const stats = `${d1} → ${d2} · ${c.message_count} msgs`;
+                const snippet = c.snippet ? highlightSnippet(c.snippet, q) : '';
+                const matchBadge = c.match_count > 0
+                    ? `<div class="card-match-count">${c.match_count}</div>`
+                    : '';
+                return `
+      <div class="convo-card${c.uuid === activeUuid ? ' active' : ''}" data-uuid="${c.uuid}">
+        <div class="card-title">${escHtml(c.name)}</div>
+        ${matchBadge}
+        <div class="card-stats">${stats}</div>
+        ${snippet ? `<div class="card-snippet">${snippet}</div>` : ''}
+      </div>
+    `;
+            }).join('');
+
+            convoList.querySelectorAll('.convo-card').forEach(el => {
+                el.addEventListener('click', () => loadThread(el.dataset.uuid));
+            });
+        }
+
+        // ── Thread load ────────────────────────────────────────────────────────────
+        async function loadThread(uuid) {
+            activeUuid = uuid;
+            // re-render list to update active state
+            renderConvoList(allConvos, globalSearch.value.trim());
+
+            thread.innerHTML = '<div class="loading">loading…</div>';
+            chatSearch.disabled = true;
+            chatSearch.value = '';
+            clearChatSearch();
+
+            const res = await fetch(`${API}/thread/${uuid}`);
+            const data = await res.json();
+
+            threadTitle.textContent = data.convo.name;
+            threadTitle.style.color = '';
+            threadTitle.style.fontStyle = 'italic';
+            threadMeta.textContent = `${data.messages.length} messages`;
+            chatSearch.disabled = false;
+
+            thread.innerHTML = data.messages.map(m => `
+    <div class="msg ${m.sender}" data-uuid="${m.uuid}">
+      <div class="msg-sender">${m.sender === 'human' ? 'you' : 'claude'} · ${fmtDate(m.created_at)}</div>
+      <div class="msg-body">${escHtml(m.text)}</div>
+    </div>
+  `).join('');
+
+            // Re-apply chat search if there's a query
+            if (chatSearch.value.trim()) applyChatSearch(chatSearch.value.trim());
+        }
+
+        // ── In-thread search ───────────────────────────────────────────────────────
+        chatSearch.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => applyChatSearch(chatSearch.value.trim()), 120);
+        });
+
+        prevBtn.addEventListener('click', () => stepMatch(-1));
+        nextBtn.addEventListener('click', () => stepMatch(1));
+
+        chatSearch.addEventListener('keydown', e => {
+            if (e.key === 'Enter') e.shiftKey ? stepMatch(-1) : stepMatch(1);
+        });
+
+        function applyChatSearch(q) {
+            // Reset all message bodies to plain text first
+            thread.querySelectorAll('.msg').forEach(el => {
+                el.classList.remove('current-match');
+                const body = el.querySelector('.msg-body');
+                body.innerHTML = escHtml(body.textContent); // re-escape from raw text
+            });
+
+            chatMatches = [];
+            chatMatchIdx = 0;
+
+            if (!q) { matchIndicator.textContent = ''; return; }
+
+            const ql = q.toLowerCase();
+            thread.querySelectorAll('.msg').forEach(el => {
+                const body = el.querySelector('.msg-body');
+                const text = body.textContent;
+                if (text.toLowerCase().includes(ql)) {
+                    body.innerHTML = highlightExact(text, q);
+                    chatMatches.push(el);
+                }
+            });
+
+            matchIndicator.textContent = chatMatches.length ? `1 / ${chatMatches.length}` : 'no matches';
+            if (chatMatches.length) {
+                chatMatchIdx = 0;
+                scrollToMatch(0);
+            }
+        }
+
+        function stepMatch(dir) {
+            if (!chatMatches.length) return;
+            chatMatches[chatMatchIdx].classList.remove('current-match');
+            chatMatchIdx = (chatMatchIdx + dir + chatMatches.length) % chatMatches.length;
+            scrollToMatch(chatMatchIdx);
+        }
+
+        function scrollToMatch(idx) {
+            const el = chatMatches[idx];
+            el.classList.add('current-match');
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            matchIndicator.textContent = `${idx + 1} / ${chatMatches.length}`;
+        }
+
+        function clearChatSearch() {
+            chatMatches = [];
+            chatMatchIdx = 0;
+            matchIndicator.textContent = '';
+        }
+
+        // ── Helpers ────────────────────────────────────────────────────────────────
+        function escHtml(s) {
+            return s
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function highlightSnippet(text, q) {
+            if (!q) return escHtml(text);
+            return highlightExact(text, q);
+        }
+
+        function highlightExact(text, q) {
+            if (!q) return escHtml(text);
+            const ql = q.toLowerCase();
+            const parts = [];
+            let i = 0;
+            const tl = text.toLowerCase();
+            while (i < text.length) {
+                const j = tl.indexOf(ql, i);
+                if (j === -1) { parts.push(escHtml(text.slice(i))); break; }
+                parts.push(escHtml(text.slice(i, j)));
+                parts.push(`<mark>${escHtml(text.slice(j, j + q.length))}</mark>`);
+                i = j + q.length;
+            }
+            return parts.join('');
+        }
+
+        function fmtDate(iso) {
+            if (!iso) return '?';
+            const d = new Date(iso);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+    </script>
+</body>
+
+</html>
