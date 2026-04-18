@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>airs</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Berkeley+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap');
 
@@ -523,6 +525,80 @@
             padding: 20px;
             text-align: center;
         }
+
+        #chart-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #000000aa;
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #chart-modal.open {
+            display: flex;
+        }
+
+        #chart-box {
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 10px;
+            padding: 24px;
+            width: 820px;
+            max-width: 95vw;
+        }
+
+        #chart-box h2 {
+            font-family: var(--serif);
+            font-style: italic;
+            color: var(--accent2);
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        #chart-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .chart-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 5px;
+            color: var(--muted);
+            cursor: pointer;
+            font-family: var(--mono);
+            font-size: 11px;
+            padding: 5px 10px;
+            transition: color 0.1s, border-color 0.1s;
+        }
+
+        .chart-btn:hover {
+            color: var(--accent2);
+            border-color: var(--accent);
+        }
+
+        .chart-btn.active {
+            color: var(--accent2);
+            border-color: var(--accent);
+            background: #7c6aff1a;
+        }
+
+        #chart-close {
+            margin-left: auto;
+        }
+
+        #chart-wrap .uplot {
+            margin: 0 auto;
+        }
+
+        .uplot text {
+            fill: var(--muted) !important;
+        }
     </style>
 </head>
 
@@ -542,6 +618,10 @@
                 <button id="export-btn" onclick="exportList()"
                     style="margin-top:8px;width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--muted);font-family:var(--mono);font-size:11px;padding:6px;cursor:pointer;">
                     export list
+                </button>
+                <button id="chart-btn-open" onclick="openChart()"
+                    style="margin-top:6px;width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--muted);font-family:var(--mono);font-size:11px;padding:6px;cursor:pointer;">
+                    activity chart
                 </button>
             </div>
             <div id="result-meta"></div>
@@ -583,6 +663,24 @@
 
     </div>
 
+    <div id="chart-modal">
+        <div id="chart-box">
+            <h2>chat activity</h2>
+            <div id="chart-controls">
+                <button class="chart-btn active" data-period="day">day</button>
+                <button class="chart-btn" data-period="week">week</button>
+                <button class="chart-btn" data-period="month">month</button>
+                <button class="chart-btn" data-period="quarter">quarter</button>
+                <button class="chart-btn" data-period="year">year</button>
+                <span style="width:1px;height:20px;background:var(--border2);margin:0 4px"></span>
+                <button class="chart-btn active" data-metric="chats">chats</button>
+                <button class="chart-btn active" data-metric="messages">messages</button>
+                <button class="chart-btn" id="chart-close">✕</button>
+            </div>
+            <div id="chart-wrap"></div>
+        </div>
+    </div>
+
     <script>
         const API = 'http://localhost:8080/api';
 
@@ -592,6 +690,7 @@
         let chatMatches = [];
         let chatMatchIdx = 0;
         let debounceTimer = null;
+        let chartData = [];
 
         // ── Elements ───────────────────────────────────────────────────────────────
         const globalSearch = document.getElementById('global-search');
@@ -855,6 +954,143 @@
             a.download = 'chats.txt';
             a.click();
             URL.revokeObjectURL(a.href);
+        }
+        // ── Chart ──────────────────────────────────────────────────────────────────
+        let chartPeriod = 'day';
+        let chartMetrics = { chats: true, messages: true };
+        let uplot = null;
+
+        document.getElementById('chart-close').addEventListener('click', () => {
+            document.getElementById('chart-modal').classList.remove('open');
+        });
+
+        document.getElementById('chart-modal').addEventListener('click', e => {
+            if (e.target === document.getElementById('chart-modal'))
+                document.getElementById('chart-modal').classList.remove('open');
+        });
+
+        document.querySelectorAll('[data-period]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                chartPeriod = btn.dataset.period;
+                renderChart(chartData);
+            });
+        });
+
+        document.querySelectorAll('[data-metric]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const m = btn.dataset.metric;
+                chartMetrics[m] = !chartMetrics[m];
+                btn.classList.toggle('active', chartMetrics[m]);
+                renderChart(chartData);
+            });
+        });
+
+        async function openChart() {
+            document.getElementById('chart-modal').classList.add('open');
+            const res = await fetch(`${API}/search?limit=9999`);
+            const data = await res.json();
+            chartData = data.convos;
+            renderChart(data.convos);
+        }
+
+        function bucketKey(date, period) {
+            const d = new Date(date);
+            switch (period) {
+                case 'day': return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 1000;
+                case 'week': {
+                    const day = d.getDay();
+                    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                    return new Date(d.getFullYear(), d.getMonth(), diff).getTime() / 1000;
+                }
+                case 'month': return new Date(d.getFullYear(), d.getMonth(), 1).getTime() / 1000;
+                case 'quarter': return new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1).getTime() / 1000;
+                case 'year': return new Date(d.getFullYear(), 0, 1).getTime() / 1000;
+            }
+        }
+
+        function renderChart(convos) {
+            // bucket all convos
+            const chatBuckets = {};
+            const msgBuckets = {};
+
+            // fetch full list 
+            const src = convos;
+            src.forEach(c => {
+                const k = bucketKey(c.created_at, chartPeriod);
+                if (k == null) return;
+                chatBuckets[k] = (chatBuckets[k] || 0) + 1;
+                msgBuckets[k] = (msgBuckets[k] || 0) + c.message_count;
+            });
+
+            // fill date spine
+            const keys = Object.keys(chatBuckets).map(Number).sort((a, b) => a - b);
+            if (!keys.length) return;
+
+            const times = [];
+            const chats = [];
+            const msgs = [];
+
+            // spine: fill gaps with 0
+            let cur = keys[0];
+            const last = keys[keys.length - 1];
+            const step = periodStep(chartPeriod, cur);
+
+            while (cur <= last) {
+                times.push(cur);
+                chats.push(chartMetrics.chats ? (chatBuckets[cur] || 0) : null);
+                msgs.push(chartMetrics.messages ? (msgBuckets[cur] || 0) : null);
+                cur = nextBucket(chartPeriod, cur);
+            }
+
+            const wrap = document.getElementById('chart-wrap');
+            if (uplot) { uplot.destroy(); uplot = null; }
+            wrap.innerHTML = '';
+
+            const series = [{}]; // x
+            const data = [new Float64Array(times)];
+
+            if (chartMetrics.chats) {
+                series.push({ label: 'chats', stroke: '#7c6aff', fill: '#7c6aff33', width: 2 });
+                data.push(new Float64Array(chats));
+            }
+            if (chartMetrics.messages) {
+                series.push({ label: 'messages', stroke: '#fbbf24', width: 2, dash: [4, 2] });
+                data.push(new Float64Array(msgs));
+            }
+
+            if (series.length === 1) return; // nothing to show
+
+            const opts = {
+                width: wrap.clientWidth || 760,
+                height: 300,
+                scales: { x: { time: true }, y: { range: (u, min, max) => [0, max * 1.1 || 1] } },
+                axes: [
+                    { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
+                    { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
+                ],
+                series,
+                cursor: { stroke: '#7c6aff55' },
+            };
+
+            uplot = new uPlot(opts, data, wrap);
+        }
+
+        function periodStep(period, ts) {
+            // approximate step in seconds for gap detection (unused but kept for clarity)
+            return { day: 86400, week: 604800, month: 2592000, quarter: 7776000, year: 31536000 }[period];
+        }
+
+        function nextBucket(period, ts) {
+            const d = new Date(ts * 1000);
+            switch (period) {
+                case 'day': return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() / 1000;
+                case 'week': return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7).getTime() / 1000;
+                case 'month': return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime() / 1000;
+                case 'quarter': return new Date(d.getFullYear(), d.getMonth() + 3, 1).getTime() / 1000;
+                case 'year': return new Date(d.getFullYear() + 1, 0, 1).getTime() / 1000;
+            }
         }
     </script>
 </body>
