@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>airs</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Berkeley+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap');
 
@@ -28,7 +29,6 @@
             --accent2: #a78bfa;
             --human: #2a2a35;
             --assistant: #161620;
-            --highlight: #7c6aff44;
             --highlight-border: #7c6aff;
             --match: #fbbf2444;
             --match-text: #fbbf24;
@@ -52,7 +52,7 @@
             height: 100vh;
         }
 
-        /* ── LEFT PANEL ── */
+        /* ── LEFT ── */
         #left {
             display: flex;
             flex-direction: column;
@@ -196,7 +196,7 @@
             padding: 0 1px;
         }
 
-        /* ── RIGHT PANEL ── */
+        /* ── RIGHT ── */
         #right {
             display: flex;
             flex-direction: column;
@@ -228,6 +228,59 @@
             font-size: 11px;
             color: var(--muted);
             white-space: nowrap;
+        }
+
+        #copy-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 5px;
+            color: var(--muted);
+            cursor: pointer;
+            font-family: var(--mono);
+            font-size: 11px;
+            padding: 5px 10px;
+            white-space: nowrap;
+            transition: color 0.1s, border-color 0.1s;
+            flex-shrink: 0;
+        }
+
+        #copy-btn:hover:not(:disabled) {
+            color: var(--accent2);
+            border-color: var(--accent);
+        }
+
+        #copy-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        #copy-btn.copied {
+            color: #4ade80;
+            border-color: #4ade80;
+        }
+
+        #web-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 5px;
+            color: var(--muted);
+            cursor: pointer;
+            font-family: var(--mono);
+            font-size: 11px;
+            padding: 5px 10px;
+            white-space: nowrap;
+            transition: color 0.1s, border-color 0.1s;
+            flex-shrink: 0;
+        }
+
+        #web-btn:hover:not(:disabled) {
+            color: var(--accent2);
+            border-color: var(--accent);
+        }
+
+        #web-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
         }
 
         #chat-search-wrap {
@@ -274,7 +327,7 @@
             scrollbar-color: var(--border2) transparent;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 12px;
         }
 
         #empty-state {
@@ -295,27 +348,29 @@
             color: #3a3a4a;
         }
 
+        /* ── Messages ── */
         .msg {
             padding: 12px 16px;
             border-radius: 8px;
             line-height: 1.6;
             font-size: 13px;
-            max-width: 100%;
+            max-width: 720px;
+            width: 100%;
+            align-self: center;
             border: 1px solid transparent;
             transition: border-color 0.15s;
         }
 
         .msg.human {
             background: var(--human);
-            align-self: flex-end;
-            max-width: 75%;
+            /* align-self: flex-end; */
+            /* max-width: 75%; */
             border-color: var(--border2);
         }
 
         .msg.assistant {
             background: var(--assistant);
             border-color: var(--border);
-            white-space: pre-wrap;
         }
 
         .msg-sender {
@@ -342,7 +397,114 @@
             box-shadow: 0 0 0 1px var(--highlight-border) inset;
         }
 
-        /* scrollbar */
+        /* ── Markdown ── */
+        .msg-body p {
+            margin-bottom: 0.6em;
+        }
+
+        .msg-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .msg-body h1,
+        .msg-body h2,
+        .msg-body h3 {
+            font-family: var(--serif);
+            font-style: italic;
+            margin: 0.8em 0 0.3em;
+            color: var(--accent2);
+        }
+
+        .msg-body h1 {
+            font-size: 1.2em;
+        }
+
+        .msg-body h2 {
+            font-size: 1.05em;
+        }
+
+        .msg-body h3 {
+            font-size: 0.95em;
+        }
+
+        .msg-body code {
+            background: #1e1e2a;
+            border: 1px solid var(--border2);
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-size: 0.9em;
+        }
+
+        .msg-body pre {
+            background: #1e1e2a;
+            border: 1px solid var(--border2);
+            border-radius: 6px;
+            padding: 12px;
+            overflow-x: auto;
+            margin: 0.6em 0;
+        }
+
+        .msg-body pre code {
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .msg-body ul,
+        .msg-body ol {
+            padding-left: 1.4em;
+            margin: 0.4em 0;
+        }
+
+        .msg-body li {
+            margin-bottom: 0.2em;
+        }
+
+        .msg-body blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 10px;
+            color: var(--muted);
+            margin: 0.5em 0;
+        }
+
+        .msg-body strong {
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .msg-body em {
+            font-style: italic;
+            color: #c0b0f0;
+        }
+
+        .msg-body a {
+            color: var(--accent2);
+            text-decoration: underline;
+        }
+
+        .msg-body hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 0.8em 0;
+        }
+
+        .msg-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0.5em 0;
+            font-size: 12px;
+        }
+
+        .msg-body th,
+        .msg-body td {
+            border: 1px solid var(--border2);
+            padding: 5px 8px;
+        }
+
+        .msg-body th {
+            background: var(--surface2);
+        }
+
         ::-webkit-scrollbar {
             width: 5px;
         }
@@ -367,7 +529,6 @@
 <body>
     <div id="app">
 
-        <!-- LEFT: conversation list -->
         <div id="left">
             <div id="left-header">
                 <h1>airs</h1>
@@ -378,6 +539,10 @@
                     </svg>
                     <input id="global-search" type="text" placeholder="search conversations…" autocomplete="off" />
                 </div>
+                <button id="export-btn" onclick="exportList()"
+                    style="margin-top:8px;width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--muted);font-family:var(--mono);font-size:11px;padding:6px;cursor:pointer;">
+                    export list
+                </button>
             </div>
             <div id="result-meta"></div>
             <div id="convo-list">
@@ -385,11 +550,14 @@
             </div>
         </div>
 
-        <!-- RIGHT: thread view -->
         <div id="right">
             <div id="right-header">
-                <div id="thread-title" style="color:var(--muted);font-style:italic">select a conversation</div>
+                <div id="thread-title" style="color:var(--muted)">select a conversation</div>
                 <div id="thread-meta"></div>
+                <button id="copy-btn" disabled>copy for substack</button>
+                <button id="web-btn" disabled onclick="window.open('https://claude.ai/chat/' + activeUuid, '_blank')">
+                    open on web
+                </button>
                 <div id="chat-search-wrap">
                     <div class="search-wrap">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -421,7 +589,7 @@
         // ── State ──────────────────────────────────────────────────────────────────
         let allConvos = [];
         let activeUuid = null;
-        let chatMatches = [];   // array of DOM elements with class current-match
+        let chatMatches = [];
         let chatMatchIdx = 0;
         let debounceTimer = null;
 
@@ -436,6 +604,7 @@
         const prevBtn = document.getElementById('prev-match');
         const nextBtn = document.getElementById('next-match');
         const matchIndicator = document.getElementById('match-indicator');
+        const copyBtn = document.getElementById('copy-btn');
 
         // ── Init ───────────────────────────────────────────────────────────────────
         fetchConvos('');
@@ -443,7 +612,7 @@
         // ── Global search ──────────────────────────────────────────────────────────
         globalSearch.addEventListener('input', () => {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => fetchConvos(globalSearch.value.trim()), 180);
+            debounceTimer = setTimeout(() => fetchConvos(globalSearch.value), 180);
         });
 
         async function fetchConvos(q) {
@@ -472,7 +641,7 @@
                     : '';
                 return `
       <div class="convo-card${c.uuid === activeUuid ? ' active' : ''}" data-uuid="${c.uuid}">
-        <div class="card-title">${escHtml(c.name)}</div>
+        <div class="card-title">${escHtml(c.name ? c.name : "[untitled]")}</div>
         ${matchBadge}
         <div class="card-stats">${stats}</div>
         ${snippet ? `<div class="card-snippet">${snippet}</div>` : ''}
@@ -488,12 +657,13 @@
         // ── Thread load ────────────────────────────────────────────────────────────
         async function loadThread(uuid) {
             activeUuid = uuid;
-            // re-render list to update active state
-            renderConvoList(allConvos, globalSearch.value.trim());
+            renderConvoList(allConvos, globalSearch.value);
 
             thread.innerHTML = '<div class="loading">loading…</div>';
             chatSearch.disabled = true;
             chatSearch.value = '';
+            copyBtn.disabled = true;
+            document.getElementById('web-btn').disabled = true;
             clearChatSearch();
 
             const res = await fetch(`${API}/thread/${uuid}`);
@@ -501,40 +671,47 @@
 
             threadTitle.textContent = data.convo.name;
             threadTitle.style.color = '';
-            threadTitle.style.fontStyle = 'italic';
             threadMeta.textContent = `${data.messages.length} messages`;
             chatSearch.disabled = false;
+            copyBtn.disabled = false;
+            document.getElementById('web-btn').disabled = false;
 
-            thread.innerHTML = data.messages.map(m => `
-    <div class="msg ${m.sender}" data-uuid="${m.uuid}">
-      <div class="msg-sender">${m.sender === 'human' ? 'you' : 'claude'} · ${fmtDate(m.created_at)}</div>
-      <div class="msg-body">${escHtml(m.text)}</div>
-    </div>
-  `).join('');
+            thread.innerHTML = '';
+            data.messages.forEach(m => {
+                const el = document.createElement('div');
+                el.className = `msg ${m.sender}`;
+                el.dataset.uuid = m.uuid;
+                el.dataset.raw = m.text; // store raw text for search
+                el.dataset.ts = m.created_at;
+                el.innerHTML = `
+      <div class="msg-sender">${m.sender === 'human' ? 'me' : 'claude'} · ${m.created_at}</div>
+      <div class="msg-body">${marked.parse(m.text)}</div>
+    `;
+                thread.appendChild(el);
+            });
 
-            // Re-apply chat search if there's a query
-            if (chatSearch.value.trim()) applyChatSearch(chatSearch.value.trim());
+            if (chatSearch.value) applyChatSearch(chatSearch.value);
         }
 
         // ── In-thread search ───────────────────────────────────────────────────────
         chatSearch.addEventListener('input', () => {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => applyChatSearch(chatSearch.value.trim()), 120);
+            debounceTimer = setTimeout(() => applyChatSearch(chatSearch.value), 120);
         });
 
         prevBtn.addEventListener('click', () => stepMatch(-1));
         nextBtn.addEventListener('click', () => stepMatch(1));
+        copyBtn.addEventListener('click', copyForSubstack);
 
         chatSearch.addEventListener('keydown', e => {
             if (e.key === 'Enter') e.shiftKey ? stepMatch(-1) : stepMatch(1);
         });
 
         function applyChatSearch(q) {
-            // Reset all message bodies to plain text first
+            // Reset all message bodies back to rendered markdown
             thread.querySelectorAll('.msg').forEach(el => {
                 el.classList.remove('current-match');
-                const body = el.querySelector('.msg-body');
-                body.innerHTML = escHtml(body.textContent); // re-escape from raw text
+                el.querySelector('.msg-body').innerHTML = marked.parse(el.dataset.raw || '');
             });
 
             chatMatches = [];
@@ -544,19 +721,15 @@
 
             const ql = q.toLowerCase();
             thread.querySelectorAll('.msg').forEach(el => {
-                const body = el.querySelector('.msg-body');
-                const text = body.textContent;
-                if (text.toLowerCase().includes(ql)) {
-                    body.innerHTML = highlightExact(text, q);
+                const raw = el.dataset.raw || '';
+                if (raw.toLowerCase().includes(ql)) {
+                    highlightInDom(el.querySelector('.msg-body'), ql, q);
                     chatMatches.push(el);
                 }
             });
 
             matchIndicator.textContent = chatMatches.length ? `1 / ${chatMatches.length}` : 'no matches';
-            if (chatMatches.length) {
-                chatMatchIdx = 0;
-                scrollToMatch(0);
-            }
+            if (chatMatches.length) { chatMatchIdx = 0; scrollToMatch(0); }
         }
 
         function stepMatch(dir) {
@@ -579,13 +752,71 @@
             matchIndicator.textContent = '';
         }
 
+        // ── Highlight in rendered DOM (walks text nodes) ───────────────────────────
+        function highlightInDom(root, ql, q) {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            const nodes = [];
+            let node;
+            while (node = walker.nextNode()) nodes.push(node);
+            nodes.forEach(n => {
+                if (!n.textContent.toLowerCase().includes(ql)) return;
+                const span = document.createElement('span');
+                span.innerHTML = highlightExact(n.textContent, q);
+                n.parentNode.replaceChild(span, n);
+            });
+        }
+
+        // ── Copy for Substack ──────────────────────────────────────────────────────
+        function substackBody(innerHTML) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = innerHTML;
+            tmp.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
+                const p = document.createElement('p');
+                p.innerHTML = `<strong>${h.innerHTML}</strong>`;
+                h.replaceWith(p);
+            });
+            return tmp.innerHTML;
+        }
+
+        function copyForSubstack() {
+            const msgs = [...thread.querySelectorAll('.msg')];
+            if (!msgs.length) return;
+
+            const title = threadTitle.textContent;
+            let html = `<h2>${escHtml(title)}</h2>\n`;
+            msgs.forEach(el => {
+                const isHuman = el.classList.contains('human');
+                const ts = el.dataset.ts ?? '';
+                const label = (isHuman ? '[Me]' : '[Claude]') + (ts ? ` — ${ts}` : '');
+                const body = substackBody(el.querySelector('.msg-body').innerHTML);
+                html += `<p><strong>${label}</strong></p>\n${body}\n`;
+            });
+
+            // Use a hidden contenteditable div — works on HTTP without ClipboardItem
+            const el = document.createElement('div');
+            el.contentEditable = 'true';
+            el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+            el.innerHTML = html;
+            document.body.appendChild(el);
+
+            const sel = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            sel.removeAllRanges();
+            sel.addRange(range);
+
+            const ok = document.execCommand('copy');
+            sel.removeAllRanges();
+            document.body.removeChild(el);
+
+            copyBtn.textContent = ok ? 'copied!' : 'failed :(';
+            copyBtn.classList.toggle('copied', ok);
+            setTimeout(() => { copyBtn.textContent = 'copy for substack'; copyBtn.classList.remove('copied'); }, 2000);
+        }
+
         // ── Helpers ────────────────────────────────────────────────────────────────
         function escHtml(s) {
-            return s
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         function highlightSnippet(text, q) {
@@ -596,9 +827,9 @@
         function highlightExact(text, q) {
             if (!q) return escHtml(text);
             const ql = q.toLowerCase();
+            const tl = text.toLowerCase();
             const parts = [];
             let i = 0;
-            const tl = text.toLowerCase();
             while (i < text.length) {
                 const j = tl.indexOf(ql, i);
                 if (j === -1) { parts.push(escHtml(text.slice(i))); break; }
@@ -611,8 +842,19 @@
 
         function fmtDate(iso) {
             if (!iso) return '?';
-            const d = new Date(iso);
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        async function exportList() {
+            const res = await fetch(`${API}/search?limit=9999`);
+            const data = await res.json();
+            const lines = data.convos.map(c => `${c.uuid}\t${c.name ? c.name : "[untitled]"}\t${c.created_at}\t${c.updated_at}\t${c.message_count} msgs`);
+            const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'chats.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
         }
     </script>
 </body>

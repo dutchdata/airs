@@ -92,7 +92,6 @@ pub async fn start_server(dbs: Databases, index: Arc<RwLock<SearchIndex>>) -> st
             .app_data(state.clone())
             .route("/api/search", web::get().to(search))
             .route("/api/thread/{uuid}", web::get().to(get_thread))
-            // Serve compiled WASM client from ./static/
             .service(Files::new("/", "./static").index_file("index.html"))
     })
     .bind("0.0.0.0:8080")?

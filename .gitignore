@@ -1,3 +1,4 @@
 /target
 lmdb_*
 claude-data
+.DS_Store
