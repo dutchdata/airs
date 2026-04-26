@@ -1010,37 +1010,45 @@
             }
         }
 
-        function renderChart(convos) {
-            // bucket all convos
-            const chatBuckets = {};
-            const msgBuckets = {};
+        function computeStats(arr) {
+            if (!arr.length) return { avg: 0, median: 0, min: 0, max: 0, stddev: 0 };
+            const sorted = [...arr].sort((a, b) => a - b);
+            const min = sorted[0], max = sorted[sorted.length - 1];
+            const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+            const median = sorted.length % 2 === 0
+                ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+                : sorted[Math.floor(sorted.length / 2)];
+            const stddev = Math.sqrt(arr.reduce((a, b) => a + (b - avg) ** 2, 0) / arr.length);
+            return { avg, median, min, max, stddev };
+        }
 
-            // fetch full list 
-            const src = convos;
-            src.forEach(c => {
+        function renderChart(convos) {
+            // bucket raw message_count arrays per bucket for stats
+            const chatBuckets = {};
+            const msgRawBuckets = {}; // key -> [message_count, ...]
+            convos = convos.filter(c => new Date(c.created_at) >= new Date('2024-11-01'));
+            convos.forEach(c => {
                 const k = bucketKey(c.created_at, chartPeriod);
                 if (k == null) return;
                 chatBuckets[k] = (chatBuckets[k] || 0) + 1;
-                msgBuckets[k] = (msgBuckets[k] || 0) + c.message_count;
+                if (!msgRawBuckets[k]) msgRawBuckets[k] = [];
+                msgRawBuckets[k].push(c.message_count);
             });
 
-            // fill date spine
             const keys = Object.keys(chatBuckets).map(Number).sort((a, b) => a - b);
             if (!keys.length) return;
 
-            const times = [];
-            const chats = [];
-            const msgs = [];
+            const times = [], chats = [], msgs = [];
+            const statsPerBucket = []; // parallel to times
 
-            // spine: fill gaps with 0
             let cur = keys[0];
             const last = keys[keys.length - 1];
-            const step = periodStep(chartPeriod, cur);
-
             while (cur <= last) {
                 times.push(cur);
-                chats.push(chartMetrics.chats ? (chatBuckets[cur] || 0) : null);
-                msgs.push(chartMetrics.messages ? (msgBuckets[cur] || 0) : null);
+                const raw = msgRawBuckets[cur] || [];
+                chats.push(chatBuckets[cur] || 0);
+                msgs.push(raw.reduce((a, b) => a + b, 0));
+                statsPerBucket.push(computeStats(raw));
                 cur = nextBucket(chartPeriod, cur);
             }
 
@@ -1048,34 +1056,189 @@
             if (uplot) { uplot.destroy(); uplot = null; }
             wrap.innerHTML = '';
 
-            const series = [{}]; // x
+            // remove old tooltip
+            const oldTip = document.getElementById('chart-tooltip');
+            if (oldTip) oldTip.remove();
+
+            const tip = document.createElement('div');
+            tip.id = 'chart-tooltip';
+            tip.style.cssText = `
+    position:absolute; pointer-events:none; display:none;
+    background:#1c1c20; border:1px solid #35353d; border-radius:6px;
+    padding:10px 14px; font-family:monospace; font-size:11px;
+    color:#e8e8ec; line-height:1.7; z-index:200; min-width:180px;
+  `;
+            document.getElementById('chart-box').appendChild(tip);
+
+            const series = [{}];
             const data = [new Float64Array(times)];
 
-            if (chartMetrics.chats) {
-                series.push({ label: 'chats', stroke: '#7c6aff', fill: '#7c6aff33', width: 2 });
+            const showChats = chartMetrics.chats;
+            const showMsgs = chartMetrics.messages;
+
+            if (showChats) {
+                series.push({
+                    label: 'chats', scale: 'y',
+                    stroke: '#7c6aff', fill: '#7c6aff22', width: 0,
+                    points: { show: false },
+                });
                 data.push(new Float64Array(chats));
             }
-            if (chartMetrics.messages) {
-                series.push({ label: 'messages', stroke: '#fbbf24', width: 2, dash: [4, 2] });
+            if (showMsgs) {
+                series.push({
+                    label: 'messages', scale: 'y2',
+                    stroke: '#fbbf24', width: 2, dash: [4, 2],
+                    points: { show: false },
+                });
                 data.push(new Float64Array(msgs));
             }
 
-            if (series.length === 1) return; // nothing to show
+            if (series.length === 1) return;
+
+            const axes = [
+                { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
+            ];
+            if (showChats) axes.push({
+                scale: 'y', stroke: '#7c6aff',
+                ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' },
+                font: '11px monospace',
+            });
+            if (showMsgs) axes.push({
+                scale: 'y2', stroke: '#fbbf24', side: 1,
+                ticks: { stroke: '#27272d' }, grid: { show: false },
+                font: '11px monospace',
+            });
 
             const opts = {
                 width: wrap.clientWidth || 760,
-                height: 300,
-                scales: { x: { time: true }, y: { range: (u, min, max) => [0, max * 1.1 || 1] } },
-                axes: [
-                    { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
-                    { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
-                ],
+                height: 320,
+                scales: {
+                    x: { time: true },
+                    y: { range: (u, min, max) => [0, max * 1.15 || 1] },
+                    y2: { range: (u, min, max) => [0, max * 1.15 || 1] },
+                },
+                axes,
                 series,
                 cursor: { stroke: '#7c6aff55' },
+                hooks: {
+                    setCursor: [u => {
+                        const idx = u.cursor.idx;
+                        if (idx == null) { tip.style.display = 'none'; return; }
+
+                        const st = statsPerBucket[idx];
+                        const c = chats[idx];
+                        const m = msgs[idx];
+                        const ts = new Date(times[idx] * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+                        if (!st || c === 0) { tip.style.display = 'none'; return; }
+
+                        tip.innerHTML = `
+          <div style="color:#a78bfa;margin-bottom:4px">${ts}</div>
+          ${showChats ? `<div>chats &nbsp;&nbsp;&nbsp;  <span style="color:#7c6aff">${c}</span></div>` : ''}
+          ${showMsgs ? `<div>messages &nbsp;<span style="color:#fbbf24">${m}</span></div>` : ''}
+          <div style="border-top:1px solid #27272d;margin:5px 0"></div>
+          <div>avg &nbsp;&nbsp;&nbsp;<span style="color:#e8e8ec">${st.avg.toFixed(1)}</span> msgs/chat</div>
+          <div>median &nbsp;<span style="color:#e8e8ec">${st.median.toFixed(1)}</span></div>
+          <div>min/max &nbsp;<span style="color:#e8e8ec">${st.min} / ${st.max}</span></div>
+          <div>stddev &nbsp;<span style="color:#e8e8ec">${st.stddev.toFixed(1)}</span></div>
+        `;
+                        tip.style.display = 'block';
+
+                        // position tooltip — flip left if near right edge
+                        const box = wrap.getBoundingClientRect();
+                        const cx = u.cursor.left;
+                        tip.style.right = '0px';
+                        tip.style.top = '0px';
+                    }],
+                    draw: [u => {
+                        if (!showChats) return;
+                        const ctx = u.ctx;
+                        const chatSeriesIdx = 1; // always index 1 when chats enabled
+                        const barW = Math.max(2, (u.bbox.width / times.length) * 0.6);
+                        ctx.save();
+                        ctx.fillStyle = '#7c6aff99';
+                        for (let i = 0; i < times.length; i++) {
+                            const val = chats[i];
+                            if (!val) continue;
+                            const x = Math.round(u.valToPos(times[i], 'x', true));
+                            const y = Math.round(u.valToPos(val, 'y', true));
+                            const h = u.bbox.top + u.bbox.height - y;
+                            ctx.fillRect(x - barW / 2, y, barW, h);
+                        }
+                        ctx.restore();
+                    }],
+                },
             };
 
             uplot = new uPlot(opts, data, wrap);
         }
+
+        // function renderChart(convos) {
+        //     // bucket all convos
+        //     const chatBuckets = {};
+        //     const msgBuckets = {};
+
+        //     // fetch full list 
+        //     const src = convos;
+        //     src.forEach(c => {
+        //         const k = bucketKey(c.created_at, chartPeriod);
+        //         if (k == null) return;
+        //         chatBuckets[k] = (chatBuckets[k] || 0) + 1;
+        //         msgBuckets[k] = (msgBuckets[k] || 0) + c.message_count;
+        //     });
+
+        //     // fill date spine
+        //     const keys = Object.keys(chatBuckets).map(Number).sort((a, b) => a - b);
+        //     if (!keys.length) return;
+
+        //     const times = [];
+        //     const chats = [];
+        //     const msgs = [];
+
+        //     // spine: fill gaps with 0
+        //     let cur = keys[0];
+        //     const last = keys[keys.length - 1];
+        //     const step = periodStep(chartPeriod, cur);
+
+        //     while (cur <= last) {
+        //         times.push(cur);
+        //         chats.push(chartMetrics.chats ? (chatBuckets[cur] || 0) : null);
+        //         msgs.push(chartMetrics.messages ? (msgBuckets[cur] || 0) : null);
+        //         cur = nextBucket(chartPeriod, cur);
+        //     }
+
+        //     const wrap = document.getElementById('chart-wrap');
+        //     if (uplot) { uplot.destroy(); uplot = null; }
+        //     wrap.innerHTML = '';
+
+        //     const series = [{}]; // x
+        //     const data = [new Float64Array(times)];
+
+        //     if (chartMetrics.chats) {
+        //         series.push({ label: 'chats', stroke: '#7c6aff', fill: '#7c6aff33', width: 2 });
+        //         data.push(new Float64Array(chats));
+        //     }
+        //     if (chartMetrics.messages) {
+        //         series.push({ label: 'messages', stroke: '#fbbf24', width: 2, dash: [4, 2] });
+        //         data.push(new Float64Array(msgs));
+        //     }
+
+        //     if (series.length === 1) return; // nothing to show
+
+        //     const opts = {
+        //         width: wrap.clientWidth || 760,
+        //         height: 300,
+        //         scales: { x: { time: true }, y: { range: (u, min, max) => [0, max * 1.1 || 1] } },
+        //         axes: [
+        //             { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
+        //             { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
+        //         ],
+        //         series,
+        //         cursor: { stroke: '#7c6aff55' },
+        //     };
+
+        //     uplot = new uPlot(opts, data, wrap);
+        // }
 
         function periodStep(period, ts) {
             // approximate step in seconds for gap detection (unused but kept for clarity)

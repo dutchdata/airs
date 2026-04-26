@@ -18,6 +18,8 @@ async fn main() -> std::io::Result<()> {
         SearchIndex::build(&dbs).expect("failed to build search index"),
     ));
 
-    tracing::info!("starting airs on http://0.0.0.0:8080");
-    start_server(dbs, index).await
+    let bind = std::env::var("AIRS_BIND").unwrap_or_else(|_| "127.0.0.1:8080".into());
+
+    tracing::info!("starting airs on http://{}", bind);
+    start_server(dbs, index, bind).await
 }

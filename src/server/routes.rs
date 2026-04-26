@@ -81,20 +81,20 @@ async fn get_thread(state: Data<AppState>, path: web::Path<String>) -> impl Resp
     HttpResponse::Ok().json(ThreadResponse { convo, messages })
 }
 
-pub async fn start_server(dbs: Databases, index: Arc<RwLock<SearchIndex>>) -> std::io::Result<()> {
+pub async fn start_server(dbs: Databases, index: Arc<RwLock<SearchIndex>>, bind: String) -> std::io::Result<()> {
     let state = Data::new(AppState { dbs, index });
-
+    
     HttpServer::new(move || {
         let cors = Cors::permissive();
         App::new()
-            .wrap(cors)
-            .wrap(Logger::default())
-            .app_data(state.clone())
-            .route("/api/search", web::get().to(search))
-            .route("/api/thread/{uuid}", web::get().to(get_thread))
-            .service(Files::new("/", "./static").index_file("index.html"))
+        .wrap(cors)
+        .wrap(Logger::default())
+        .app_data(state.clone())
+        .route("/api/search", web::get().to(search))
+        .route("/api/thread/{uuid}", web::get().to(get_thread))
+        .service(Files::new("/", "./static").index_file("index.html"))
     })
-    .bind("0.0.0.0:8080")?
+    .bind(&bind)?
     .run()
     .await
 }
