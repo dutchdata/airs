@@ -1173,75 +1173,7 @@
             uplot = new uPlot(opts, data, wrap);
         }
 
-        // function renderChart(convos) {
-        //     // bucket all convos
-        //     const chatBuckets = {};
-        //     const msgBuckets = {};
-
-        //     // fetch full list 
-        //     const src = convos;
-        //     src.forEach(c => {
-        //         const k = bucketKey(c.created_at, chartPeriod);
-        //         if (k == null) return;
-        //         chatBuckets[k] = (chatBuckets[k] || 0) + 1;
-        //         msgBuckets[k] = (msgBuckets[k] || 0) + c.message_count;
-        //     });
-
-        //     // fill date spine
-        //     const keys = Object.keys(chatBuckets).map(Number).sort((a, b) => a - b);
-        //     if (!keys.length) return;
-
-        //     const times = [];
-        //     const chats = [];
-        //     const msgs = [];
-
-        //     // spine: fill gaps with 0
-        //     let cur = keys[0];
-        //     const last = keys[keys.length - 1];
-        //     const step = periodStep(chartPeriod, cur);
-
-        //     while (cur <= last) {
-        //         times.push(cur);
-        //         chats.push(chartMetrics.chats ? (chatBuckets[cur] || 0) : null);
-        //         msgs.push(chartMetrics.messages ? (msgBuckets[cur] || 0) : null);
-        //         cur = nextBucket(chartPeriod, cur);
-        //     }
-
-        //     const wrap = document.getElementById('chart-wrap');
-        //     if (uplot) { uplot.destroy(); uplot = null; }
-        //     wrap.innerHTML = '';
-
-        //     const series = [{}]; // x
-        //     const data = [new Float64Array(times)];
-
-        //     if (chartMetrics.chats) {
-        //         series.push({ label: 'chats', stroke: '#7c6aff', fill: '#7c6aff33', width: 2 });
-        //         data.push(new Float64Array(chats));
-        //     }
-        //     if (chartMetrics.messages) {
-        //         series.push({ label: 'messages', stroke: '#fbbf24', width: 2, dash: [4, 2] });
-        //         data.push(new Float64Array(msgs));
-        //     }
-
-        //     if (series.length === 1) return; // nothing to show
-
-        //     const opts = {
-        //         width: wrap.clientWidth || 760,
-        //         height: 300,
-        //         scales: { x: { time: true }, y: { range: (u, min, max) => [0, max * 1.1 || 1] } },
-        //         axes: [
-        //             { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
-        //             { stroke: '#6b6b7a', ticks: { stroke: '#27272d' }, grid: { stroke: '#27272d' }, font: '11px monospace' },
-        //         ],
-        //         series,
-        //         cursor: { stroke: '#7c6aff55' },
-        //     };
-
-        //     uplot = new uPlot(opts, data, wrap);
-        // }
-
         function periodStep(period, ts) {
-            // approximate step in seconds for gap detection (unused but kept for clarity)
             return { day: 86400, week: 604800, month: 2592000, quarter: 7776000, year: 31536000 }[period];
         }
 
