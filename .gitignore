@@ -2,3 +2,5 @@
 lmdb_*
 claude-data
 .DS_Store
+run.sh
+
